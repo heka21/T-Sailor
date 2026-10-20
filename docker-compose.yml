@@ -1,0 +1,7 @@
+services:
+  t-sailor:
+    build: .
+    container_name: t-sailor
+    ports:
+      - "8090:80"
+    restart: unless-stopped
