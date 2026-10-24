@@ -60,7 +60,11 @@ export function Layout() {
   useThemeClass(theme)
   const { pathname, hash, key } = useLocation()
   useEffect(() => {
-    if (!hash) return window.scrollTo(0, 0)
+    // Braces matter: newer browsers return a Promise from scrollTo, which React would take for a cleanup function.
+    if (!hash) {
+      window.scrollTo(0, 0)
+      return
+    }
     // e.g. a search result pointing at a lesson section — wait a tick for the page to render
     const t = setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ behavior: 'smooth' }), 60)
     return () => clearTimeout(t)
