@@ -57,6 +57,9 @@ const EDGE = 2.4
 /**
  * One piece of rope. `edge` limits the dark outline to the middle of the piece (by distance along the rope), so a
  * piece redrawn over a crossing blends into the rope it was cut from instead of showing a seam.
+ *
+ * A piece redrawn over a crossing first casts a shadow down and to the right (the light is top left) across the rope
+ * underneath, which is what makes over and under read at a glance.
  */
 function RopePiece({ pts, rope, width, tip, edge }: { pts: Sample[]; rope: keyof typeof ROPES; width: number; tip?: boolean; edge?: [number, number] }) {
   if (pts.length < 2) return null
@@ -67,6 +70,7 @@ function RopePiece({ pts, rope, width, tip, edge }: { pts: Sample[]; rope: keyof
   const outline = edge ? linePath(slice(pts, edge[0], edge[1])) : l.center
   return (
     <g fill="none" strokeLinejoin="round" strokeLinecap="butt">
+      {edge && <path d={outline} stroke="#000" strokeOpacity={0.3} strokeWidth={width + 2} strokeLinecap="round" transform="translate(1.5 3)" />}
       <path d={outline} stroke={c.edge} strokeWidth={width + EDGE} />
       {tip && <circle cx={end.x} cy={end.y} r={(width + EDGE) / 2} fill={c.edge} />}
       <path d={l.center} stroke={c.base} strokeWidth={width} />
@@ -82,6 +86,12 @@ function RopePiece({ pts, rope, width, tip, edge }: { pts: Sample[]; rope: keyof
       )}
     </g>
   )
+}
+
+/** The soft shadow a run of rope casts on the deck or the object under it. */
+function RopeShadow({ pts, width }: { pts: Sample[]; width: number }) {
+  if (pts.length < 2) return null
+  return <path d={linePath(pts)} fill="none" stroke="#0b1f33" strokeOpacity={0.13} strokeWidth={width + 1} strokeLinecap="round" strokeLinejoin="round" transform="translate(3 4.5)" />
 }
 
 /** One frame of a knot: the rope as tied so far, the object it is tied to, the next move and labels. */
@@ -103,8 +113,10 @@ function KnotScene({ knot, view, next, labels, title }: { knot: Knot; view: View
   })
   cross.forEach((c, j) => {
     const line = lines[c.over]
-    // The outline only has to cover the rope underneath; the body runs on past it to hide the outline's ends.
-    const edge = widths[c.under] / 2 + 2
+    // The outline only has to cover the rope underneath — further along the rope the shallower the crossing — and
+    // the body runs on past it to hide the outline's ends.
+    const sin = Math.max(0.2, Math.min(1, c.sin))
+    const edge = widths[c.under] / 2 / sin + (widths[c.over] / 2) * (Math.sqrt(1 - sin * sin) / sin) + 2
     const reach = edge + (widths[c.over] + EDGE) / 2 + 1
     const end = line[line.length - 1].s
     const piece = slice(line, c.sOver - reach, c.sOver + reach)
@@ -117,6 +129,13 @@ function KnotScene({ knot, view, next, labels, title }: { knot: Knot; view: View
     })
   })
   const draw = (p: Piece) => <RopePiece key={p.key} pts={p.pts} rope={knot.strands[p.i].rope} width={widths[p.i]} tip={p.tip} edge={p.edge} />
+  // All the shadows on the deck go down before any rope, so none falls across rope that is on top.
+  const layer = (pieces: Piece[]) => (
+    <>
+      {pieces.filter((p) => !p.edge).map((p) => <RopeShadow key={`s${p.key}`} pts={p.pts} width={widths[p.i]} />)}
+      {pieces.map(draw)}
+    </>
+  )
 
   // Where the working end goes next, as a dashed arrow.
   const ghosts =
@@ -133,9 +152,9 @@ function KnotScene({ knot, view, next, labels, title }: { knot: Knot; view: View
     <svg viewBox="0 0 400 340" className="block h-auto w-full" role="img" aria-label={title}>
       <rect width="400" height="340" fill="var(--surface-2)" />
       {knot.back}
-      {back.map(draw)}
+      {layer(back)}
       {knot.object}
-      {front.map(draw)}
+      {layer(front)}
       {knot.front}
       {ghosts?.map((g, i) => (
         <g key={i} className="pointer-events-none">

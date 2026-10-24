@@ -83,6 +83,8 @@ export interface Crossing {
   under: number
   sUnder: number
   zOver: number
+  /** Sine of the angle between the two passes: the shallower the crossing, the longer the stretch they overlap. */
+  sin: number
 }
 
 /** Every place where two passes of rope cross, with which one is on top. */
@@ -109,10 +111,11 @@ export function crossings(strands: Sample[][], widths: number[]): Crossing[] {
           const zb = r.z + (v.z - r.z) * w
           const sa = p.s + (q.s - p.s) * t
           const sb = r.s + (v.s - r.s) * w
+          const sin = Math.abs((q.x - p.x) * (v.y - r.y) - (q.y - p.y) * (v.x - r.x)) / ((q.s - p.s) * (v.s - r.s) || 1)
           out.push(
             za >= zb
-              ? { over: a, sOver: sa, under: b, sUnder: sb, zOver: za }
-              : { over: b, sOver: sb, under: a, sUnder: sa, zOver: zb },
+              ? { over: a, sOver: sa, under: b, sUnder: sb, zOver: za, sin }
+              : { over: b, sOver: sb, under: a, sUnder: sa, zOver: zb, sin },
           )
         }
       }
