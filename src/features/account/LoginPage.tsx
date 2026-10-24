@@ -26,8 +26,7 @@ export function LoginPage() {
         <div className="mb-6">
           <Logo />
         </div>
-        <h1 className="text-2xl font-bold">Sign in</h1>
-        <p className="mt-1 mb-5 text-sm text-muted">Your progress is saved to your account, on any device.</p>
+        <h1 className="mb-5 text-2xl font-bold">Sign in</h1>
         <label className="mb-3 block">
           <span className="mb-1 block text-sm font-medium">Username</span>
           <input
@@ -61,7 +60,6 @@ export function LoginPage() {
         >
           <LogIn size={17} /> {busy ? 'Signing in…' : 'Sign in'}
         </button>
-        <p className="mt-4 text-center text-xs text-muted">No account? Ask your instructor to add you.</p>
       </form>
     </div>
   )
