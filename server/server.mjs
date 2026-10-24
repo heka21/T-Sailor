@@ -6,12 +6,13 @@ import { deleteProgress, hashPassword, MIN_PASSWORD, normalizeUsername, readProg
 
 const PORT = Number(process.env.PORT ?? 8091)
 const COOKIE = 'ts_session'
-const SESSION_DAYS = 180
+const SESSION_DAYS = 30
 const MAX_BODY = 256 * 1024
 const SECRET = readSecret()
 
 // --- sessions: "<user>.<expiry>.<hmac>" — the hmac also covers the password hash, so changing
-// a password (or removing the user) signs out every other device.
+// a password (or removing the user) signs out every other device. Usernames may contain dots,
+// so the cookie is parsed from the right.
 function sign(user, exp, hash) {
   return createHmac('sha256', SECRET).update(`${user}.${exp}.${hash}`).digest('base64url')
 }
@@ -24,29 +25,46 @@ function issue(user, hash) {
 function sessionUser(req) {
   const raw = (req.headers.cookie ?? '').split(/;\s*/).find((c) => c.startsWith(`${COOKIE}=`))
   if (!raw) return null
-  const [user, exp, sig] = raw.slice(COOKIE.length + 1).split('.')
+  const parts = /^(.+)\.(\d+)\.([\w-]+)$/.exec(raw.slice(COOKIE.length + 1))
+  if (!parts) return null
+  const [, user, exp, sig] = parts
   const account = readUsers()[user]
   if (!account || !(Number(exp) > Date.now())) return null
   const expected = Buffer.from(sign(user, exp, account.hash))
-  const actual = Buffer.from(sig ?? '')
+  const actual = Buffer.from(sig)
   if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null
   return { username: user, ...account }
 }
 
-function cookie(value, maxAge) {
-  return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}`
+// Secure when the request reached us over HTTPS (Cloudflare sets X-Forwarded-Proto), so plain-HTTP
+// LAN and dev use keep working.
+function cookie(req, value, maxAge) {
+  const secure = req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''
+  return `${COOKIE}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`
 }
 
-// --- naive brute-force brake: 5 failures per username → locked for a minute.
-const failures = new Map()
-function locked(user) {
-  const f = failures.get(user)
-  return f && f.count >= 5 && Date.now() - f.at < 60_000
+const session = (req, user, hash) => cookie(req, issue(user, hash), SESSION_DAYS * 86400)
+
+// --- brute-force brake, keyed by client IP rather than username so nobody can lock someone else out.
+// Per IP+username: 5 free failures, then a lockout that doubles each time (1, 2, 4… up to 15 min).
+// Per IP across all usernames: 20 free failures, then up to an hour. Counts fade after an hour quiet.
+const HOUR = 3_600_000
+const attempts = new Map()
+const blocked = (key) => (attempts.get(key)?.until ?? 0) > Date.now()
+function strike(key, free, maxLock) {
+  const now = Date.now()
+  const prev = attempts.get(key)
+  const count = prev && now - prev.last < HOUR ? prev.count + 1 : 1
+  const until = count >= free ? now + Math.min(60_000 * 2 ** (count - free), maxLock) : 0
+  attempts.set(key, { count, last: now, until })
 }
-function fail(user) {
-  const f = failures.get(user)
-  failures.set(user, { count: f && Date.now() - f.at < 60_000 ? f.count + 1 : 1, at: Date.now() })
-}
+setInterval(() => {
+  const now = Date.now()
+  for (const [key, a] of attempts) if (now - a.last > HOUR && a.until < now) attempts.delete(key)
+}, 10 * 60_000).unref()
+
+// Behind the Cloudflare tunnel the real visitor is in CF-Connecting-IP; otherwise use the socket.
+const clientIp = (req) => String(req.headers['cf-connecting-ip'] ?? req.socket.remoteAddress)
 
 // --- http helpers
 function send(res, status, body, headers = {}) {
@@ -89,25 +107,27 @@ const routes = [
   ['POST', '/api/login', async (req, res) => {
     const { username, password } = await readBody(req)
     const user = normalizeUsername(username)
-    if (user && locked(user)) return send(res, 429, { error: 'Too many attempts — try again in a minute.' })
+    const ip = clientIp(req)
+    const key = `${ip} ${user}`
+    if (blocked(ip) || blocked(key)) return send(res, 429, { error: 'Too many attempts — try again later.' })
     const account = user ? readUsers()[user] : undefined
     if (!account || !(await verifyPassword(password ?? '', account.hash))) {
-      if (user) fail(user)
+      strike(ip, 20, HOUR)
+      strike(key, 5, 15 * 60_000)
       await new Promise((r) => setTimeout(r, 400))
       return send(res, 401, { error: 'Wrong username or password.' })
     }
-    failures.delete(user)
-    send(res, 200, profile({ username: user, ...account }), {
-      'Set-Cookie': cookie(issue(user, account.hash), SESSION_DAYS * 86400),
-    })
+    attempts.delete(key)
+    send(res, 200, profile({ username: user, ...account }), { 'Set-Cookie': session(req, user, account.hash) })
   }, { public: true }],
 
-  ['POST', '/api/logout', async (_req, res) => {
-    send(res, 204, undefined, { 'Set-Cookie': cookie('', 0) })
+  ['POST', '/api/logout', async (req, res) => {
+    send(res, 204, undefined, { 'Set-Cookie': cookie(req, '', 0) })
   }, { public: true }],
 
-  ['GET', '/api/me', async (_req, res, me) => {
-    send(res, 200, profile(me))
+  // Sliding expiry: each app load renews the cookie, so only devices idle for 30 days are signed out.
+  ['GET', '/api/me', async (req, res, me) => {
+    send(res, 200, profile(me), { 'Set-Cookie': session(req, me.username, me.hash) })
   }],
 
   ['GET', '/api/progress', async (_req, res, me) => {
@@ -129,7 +149,7 @@ const routes = [
     users[me.username].hash = await hashPassword(next)
     writeUsers(users)
     // Re-issue this device's cookie; other devices are signed out by the new hash.
-    send(res, 204, undefined, { 'Set-Cookie': cookie(issue(me.username, users[me.username].hash), SESSION_DAYS * 86400) })
+    send(res, 204, undefined, { 'Set-Cookie': session(req, me.username, users[me.username].hash) })
   }],
 
   // --- admin: manage accounts from the UI
@@ -167,7 +187,7 @@ const routes = [
     }
     writeUsers(users)
     // A new password signs that user out everywhere — keep the admin signed in if it was their own.
-    const headers = password !== undefined && user === me.username ? { 'Set-Cookie': cookie(issue(user, users[user].hash), SESSION_DAYS * 86400) } : {}
+    const headers = password !== undefined && user === me.username ? { 'Set-Cookie': session(req, user, users[user].hash) } : {}
     send(res, 200, profile({ username: user, ...users[user] }), headers)
   }, { admin: true }],
 

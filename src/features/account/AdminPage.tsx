@@ -65,7 +65,7 @@ function AddUser({ onAdded }: { onAdded: () => void }) {
         <div className="grid gap-3 sm:grid-cols-3">
           <input className={inputCls} placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} required />
           <input className={inputCls} placeholder="Display name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className={inputCls} placeholder="Password (6+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={6} required />
+          <input className={inputCls} placeholder="Password (10+ characters)" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={10} required />
         </div>
         <div className="flex flex-wrap items-center gap-4">
           <Toggle checked={admin} onChange={setAdmin} label="Admin" />
@@ -121,7 +121,7 @@ function UserRow({ user, isMe, onChange }: { user: ManagedUser; isMe: boolean; o
             <Button variant="soft" disabled={busy || name.trim() === user.name}>Save</Button>
           </form>
           <form onSubmit={setNewPassword} className="flex gap-2">
-            <input className={inputCls} placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={6} required />
+            <input className={inputCls} placeholder="New password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" minLength={10} required />
             <Button variant="soft" disabled={busy}>Set</Button>
           </form>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2">

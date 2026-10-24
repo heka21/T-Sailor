@@ -34,7 +34,7 @@ export function normalizeUsername(raw) {
   return /^[a-z0-9][a-z0-9._-]{0,31}$/.test(u) ? u : null
 }
 
-export const MIN_PASSWORD = 6
+export const MIN_PASSWORD = 10
 
 export const readUsers = () => readJson(USERS, {})
 export const writeUsers = (users) => writeAtomic(USERS, JSON.stringify(users, null, 2) + '\n')

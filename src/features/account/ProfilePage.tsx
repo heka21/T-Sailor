@@ -48,7 +48,7 @@ function PasswordForm() {
   return (
     <form onSubmit={submit} className="space-y-3">
       <input className={inputCls} type="password" placeholder="Current password" autoComplete="current-password" value={current} onChange={(e) => setCurrent(e.target.value)} required />
-      <input className={inputCls} type="password" placeholder="New password (6+ characters)" autoComplete="new-password" minLength={6} value={next} onChange={(e) => setNext(e.target.value)} required />
+      <input className={inputCls} type="password" placeholder="New password (10+ characters)" autoComplete="new-password" minLength={10} value={next} onChange={(e) => setNext(e.target.value)} required />
       {msg && <p className={`text-sm font-medium ${msg.ok ? 'text-starboard' : 'text-port'}`}>{msg.text}</p>}
       <button type="submit" className="rounded-xl bg-sea-soft px-4 py-2 text-sm font-semibold text-sea transition hover:brightness-105">
         Change password
