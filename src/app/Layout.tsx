@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { BookOpen, FlaskConical, House, PanelLeftClose, PanelLeftOpen, ShieldCheck, Wind, Wrench } from 'lucide-react'
+import { BookOpen, ChevronDown, FlaskConical, House, PanelLeftClose, PanelLeftOpen, ShieldCheck, Wind, Wrench } from 'lucide-react'
 import { useProgress, type Theme } from '../lib/progress'
 import { useSession } from '../lib/session'
 import { Logo } from '../components/ui/Logo'
@@ -8,17 +8,34 @@ import { UserMenu } from '../components/ui/UserMenu'
 import { ThemeButton } from '../components/ui/ThemeSwitch'
 import { SearchBox, SearchButton } from '../components/ui/Search'
 import { LoginPage } from '../features/account/LoginPage'
+import { COURSES } from '../content/courses'
+import { SIMS } from '../sims/registry'
+import { TOOLS } from '../features/toolbox/ToolboxPage'
 
-const NAV = [
+interface NavItem {
+  to: string
+  label: string
+  icon: typeof House
+  end?: boolean
+  /** Sub-sections, listed under the item in the expanded sidebar (the phone tabs ignore them). */
+  children?: { to: string; label: string; color?: string }[]
+}
+
+const NAV: NavItem[] = [
   { to: '/', label: 'Home', icon: House, end: true },
-  { to: '/courses', label: 'Courses', icon: BookOpen },
-  { to: '/lab', label: 'Sim Lab', icon: FlaskConical },
-  { to: '/toolbox', label: 'Toolbox', icon: Wrench },
+  {
+    to: '/courses',
+    label: 'Courses',
+    icon: BookOpen,
+    children: COURSES.map((c) => ({ to: `/courses/${c.id}`, label: c.title, color: c.color })),
+  },
+  { to: '/lab', label: 'Sim Lab', icon: FlaskConical, children: SIMS.map((s) => ({ to: `/lab/${s.id}`, label: s.title })) },
+  { to: '/toolbox', label: 'Toolbox', icon: Wrench, children: TOOLS.map((t) => ({ to: `/toolbox/${t.id}`, label: t.title })) },
   { to: '/weather', label: 'Weather', icon: Wind },
 ]
 
 // Sidebar only — on phones admins reach it from the account menu.
-const ADMIN_NAV = { to: '/admin', label: 'Admin', icon: ShieldCheck, end: false }
+const ADMIN_NAV: NavItem = { to: '/admin', label: 'Admin', icon: ShieldCheck }
 
 /** Collapsed/expanded sidebar — a per-device preference, so it lives in localStorage rather than the account. */
 function useSidebarCollapsed() {
@@ -40,6 +57,73 @@ function useSidebarCollapsed() {
       return !c
     })
   return [collapsed, toggle] as const
+}
+
+/**
+ * Sidebar links. Sections with sub-sections open on their own while you're inside them,
+ * and the chevron opens or closes any of them by hand.
+ */
+function SidebarNav({ items, collapsed }: { items: NavItem[]; collapsed: boolean }) {
+  const { pathname } = useLocation()
+  const [toggled, setToggled] = useState<Record<string, boolean>>({})
+  const inside = (to: string) => pathname === to || pathname.startsWith(`${to}/`)
+
+  return (
+    <nav className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1">
+      {items.map(({ to, label, icon: Icon, end, children }) => {
+        const open = !collapsed && !!children && (toggled[to] ?? inside(to))
+        return (
+          <div key={to}>
+            <div className="relative">
+              <NavLink
+                to={to}
+                end={end}
+                title={collapsed ? label : undefined}
+                aria-label={collapsed ? label : undefined}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 rounded-xl py-2.5 text-[15px] font-medium transition ${
+                    collapsed ? 'justify-center px-0' : children ? 'pr-10 pl-3' : 'px-3'
+                  } ${isActive ? 'bg-sea-soft text-sea' : 'text-muted hover:bg-surface-2 hover:text-ink'}`
+                }
+              >
+                <Icon size={19} className="shrink-0" />
+                {!collapsed && label}
+              </NavLink>
+              {!collapsed && children && (
+                <button
+                  onClick={() => setToggled((t) => ({ ...t, [to]: !open }))}
+                  aria-label={`${open ? 'Hide' : 'Show'} ${label} sections`}
+                  aria-expanded={open}
+                  className="absolute inset-y-0 right-1 my-auto grid h-8 w-8 place-items-center rounded-lg text-muted transition hover:bg-surface-2 hover:text-ink"
+                >
+                  <ChevronDown size={16} className={`transition-transform ${open ? '' : '-rotate-90'}`} />
+                </button>
+              )}
+            </div>
+            {open && (
+              <ul className="mt-1 mb-2 ml-[21px] flex flex-col gap-0.5 border-l border-line pl-2">
+                {children!.map((c) => (
+                  <li key={c.to}>
+                    <NavLink
+                      to={c.to}
+                      className={({ isActive }) =>
+                        `flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-[13.5px] transition ${
+                          isActive ? 'bg-surface-2 font-medium text-ink' : 'text-muted hover:bg-surface-2 hover:text-ink'
+                        }`
+                      }
+                    >
+                      {c.color && <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: c.color }} />}
+                      <span className="truncate">{c.label}</span>
+                    </NavLink>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )
+      })}
+    </nav>
+  )
 }
 
 function useThemeClass(theme: Theme) {
@@ -97,25 +181,7 @@ export function Layout() {
             {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
           </button>
         </div>
-        <nav className="flex flex-col gap-1">
-          {(user.admin ? [...NAV, ADMIN_NAV] : NAV).map(({ to, label, icon: Icon, end }) => (
-            <NavLink
-              key={to}
-              to={to}
-              end={end}
-              title={collapsed ? label : undefined}
-              aria-label={collapsed ? label : undefined}
-              className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl py-2.5 text-[15px] font-medium transition ${collapsed ? 'justify-center px-0' : 'px-3'} ${
-                  isActive ? 'bg-sea-soft text-sea' : 'text-muted hover:bg-surface-2 hover:text-ink'
-                }`
-              }
-            >
-              <Icon size={19} className="shrink-0" />
-              {!collapsed && label}
-            </NavLink>
-          ))}
-        </nav>
+        <SidebarNav items={user.admin ? [...NAV, ADMIN_NAV] : NAV} collapsed={collapsed} />
       </aside>
 
       {/* Top bar: search in the middle, theme and profile on the right (logo too on phones) */}
