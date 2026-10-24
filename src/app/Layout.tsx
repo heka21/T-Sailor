@@ -4,7 +4,7 @@ import { BookOpen, FlaskConical, House, PanelLeftClose, PanelLeftOpen, ShieldChe
 import { useProgress, type Theme } from '../lib/progress'
 import { useSession } from '../lib/session'
 import { Logo } from '../components/ui/Logo'
-import { Avatar } from '../components/ui/Avatar'
+import { UserMenu } from '../components/ui/UserMenu'
 import { ThemeButton } from '../components/ui/ThemeSwitch'
 import { SearchBox, SearchButton } from '../components/ui/Search'
 import { LoginPage } from '../features/account/LoginPage'
@@ -17,7 +17,7 @@ const NAV = [
   { to: '/weather', label: 'Weather', icon: Wind },
 ]
 
-// Sidebar only — on phones admins reach it from their Profile page.
+// Sidebar only — on phones admins reach it from the account menu.
 const ADMIN_NAV = { to: '/admin', label: 'Admin', icon: ShieldCheck, end: false }
 
 /** Collapsed/expanded sidebar — a per-device preference, so it lives in localStorage rather than the account. */
@@ -126,14 +126,7 @@ export function Layout() {
         <div className="flex flex-1 items-center justify-end gap-1">
           <SearchButton className="md:hidden" />
           <ThemeButton />
-          <NavLink
-            to="/profile"
-            aria-label={`${user.name} — profile`}
-            title={user.name}
-            className={({ isActive }) => `ml-1 rounded-full ring-offset-2 ring-offset-bg transition ${isActive ? 'ring-2 ring-sea' : 'hover:ring-2 hover:ring-line'}`}
-          >
-            <Avatar name={user.name} size={32} />
-          </NavLink>
+          <UserMenu user={user} />
         </div>
       </header>
 
