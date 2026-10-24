@@ -98,6 +98,10 @@ function WindCard() {
           {a.title}
         </div>
       </div>
+      <div className="shrink-0 text-right">
+        <div className="font-display text-2xl font-semibold">{Math.round(c.temp)}°C</div>
+        <div className="text-xs text-muted">air temp</div>
+      </div>
     </Link>
   )
 }
