@@ -9,7 +9,7 @@ import { Checklists } from '../../tools/Checklists'
 import { FlagSignals } from '../../content/diagrams/FlagSignals'
 import { NotFound } from '../../app/NotFound'
 
-const TOOLS: { id: string; title: string; blurb: string; icon: typeof Anchor; Component: ComponentType }[] = [
+export const TOOLS: { id: string; title: string; blurb: string; icon: typeof Anchor; Component: ComponentType }[] = [
   { id: 'anatomy', title: 'Boat anatomy', blurb: 'Tap any part of a keelboat or sail to learn its name. Then test yourself.', icon: Anchor, Component: Anatomy },
   { id: 'knots', title: 'Knots', blurb: 'Seven essential knots, animated step by step.', icon: Spline, Component: KnotViewer },
   { id: 'beaufort', title: 'Beaufort scale', blurb: 'What each wind force looks like, and what it means on a keelboat.', icon: Waves, Component: BeaufortScale },

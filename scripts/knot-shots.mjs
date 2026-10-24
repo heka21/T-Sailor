@@ -3,11 +3,13 @@
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { login } from './login.mjs'
 
 const [base, outDir] = process.argv.slice(2)
 mkdirSync(outDir, { recursive: true })
 const browser = await chromium.launch()
 const page = await browser.newPage({ viewport: { width: 1300, height: 900 } })
+await login(page, base)
 await page.goto(`${base}/toolbox/knots`)
 const names = await page.$$eval('main button.shrink-0', (bs) => bs.map((b) => b.textContent))
 for (const name of names) {

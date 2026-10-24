@@ -72,7 +72,7 @@ export function Checklist({ id }: { id: string }) {
   const reset = useProgress((s) => s.resetChecks)
   const done = list.items.filter((_, i) => checks[`${id}:${i}`]).length
   return (
-    <section className="rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-5">
+    <section id={`checklist-${id}`} className="scroll-mt-24 rounded-3xl border border-line bg-surface p-4 shadow-sm sm:p-5">
       <div className="mb-3 flex items-start justify-between gap-3">
         <div>
           <h3 className="font-display text-lg font-semibold">{list.title}</h3>

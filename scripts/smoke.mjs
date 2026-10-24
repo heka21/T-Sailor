@@ -1,8 +1,10 @@
 // Visits every route, fails on console errors, and optionally saves screenshots.
+// Needs T_SAILOR_USER / T_SAILOR_PASS (see login.mjs).
 // Usage: node scripts/smoke.mjs <baseUrl> [screenshotDir] [--mobile] [--dark] [--only=/path,/path]
 import { chromium } from 'playwright'
 import { mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { login } from './login.mjs'
 
 const [base = 'http://localhost:8090', outDir] = process.argv.slice(2).filter((a) => !a.startsWith('--'))
 const mobile = process.argv.includes('--mobile')
@@ -19,6 +21,7 @@ const errors = []
 page.on('console', (m) => m.type() === 'error' && errors.push(`[${page.url()}] ${m.text()}`))
 page.on('pageerror', (e) => errors.push(`[${page.url()}] ${e.message}`))
 
+await login(page, base)
 await page.goto(base)
 const lessonLinks = await page.evaluate(async () => {
   const res = await fetch('/courses')
@@ -27,7 +30,7 @@ const lessonLinks = await page.evaluate(async () => {
 if (!lessonLinks) errors.push('/courses did not return 200 (SPA fallback broken?)')
 
 // Collect routes from the rendered app.
-const routes = new Set(['/', '/courses', '/lab', '/toolbox', '/weather'])
+const routes = new Set(['/', '/courses', '/lab', '/toolbox', '/weather', '/profile'])
 for (const p of ['/courses', '/lab', '/toolbox']) {
   await page.goto(base + p)
   await page.waitForLoadState('networkidle')

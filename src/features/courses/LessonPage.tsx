@@ -61,7 +61,7 @@ export function LessonPage() {
       <footer className="mt-14 max-w-3xl border-t border-line pt-6">
         <p className="mb-4 text-xs leading-relaxed text-muted">
           General study notes based on Australian Sailing keelboat courses and the Racing Rules of Sailing 2025–2028. Your
-          RPYC course handbook and instructors are the final word — check local details with them.
+          course handbook and instructors are the final word — check local details with them.
         </p>
         <button
           onClick={() => toggleComplete(lesson.id)}

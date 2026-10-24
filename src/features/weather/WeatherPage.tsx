@@ -21,7 +21,7 @@ export function WeatherPage() {
   return (
     <>
       <PageHeader eyebrow="Weather" title={`Wind at ${LOCATION.name}`}>
-        Live forecast for the Royal Perth Yacht Club, and what it means for a keelboat session.
+        Live forecast for Matilda Bay, and what it means for a keelboat session.
       </PageHeader>
 
       {error && (

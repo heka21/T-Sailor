@@ -1,6 +1,7 @@
 import type { MDXComponents } from 'mdx/types'
 import { Link } from 'react-router'
 import { Callout, KeyTerms } from '../components/ui/blocks'
+import { slugify, textOf } from '../lib/slug'
 import { Stepper } from '../components/ui/Stepper'
 import { PointsOfSail } from '../sims/PointsOfSail'
 import { SailTrim } from '../sims/SailTrim'
@@ -21,6 +22,12 @@ import { CourseDiagram, MarkRounding, PenaltyTurns, SpinnakerParts, WindShift } 
 
 /** Everything a lesson .mdx file can use without importing it. */
 export const mdxComponents: MDXComponents = {
+  // ids let search results link straight to a section
+  h2: ({ children }) => (
+    <h2 id={slugify(textOf(children))} className="scroll-mt-24">
+      {children}
+    </h2>
+  ),
   a: ({ href = '', children }) =>
     href.startsWith('/') ? <Link to={href}>{children}</Link> : <a href={href} target="_blank" rel="noreferrer">{children}</a>,
   Callout,

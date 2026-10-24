@@ -33,7 +33,7 @@ function Hero() {
         </motion.g>
       </svg>
       <div className="relative max-w-xl p-6 sm:p-10">
-        <p className="text-sm font-semibold tracking-wider text-[#7ee0e8] uppercase">Royal Perth Yacht Club · Keelboat pathway</p>
+        <p className="text-sm font-semibold tracking-wider text-[#7ee0e8] uppercase">Keelboat pathway</p>
         <h1 className="mt-2 text-4xl leading-tight font-bold sm:text-5xl">Learn to sail, visually.</h1>
         <p className="mt-3 text-lg leading-relaxed text-white/85">
           Five courses from your first time aboard to your first race — with simulators you can steer, trim and play with.

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
-/** Royal Perth Yacht Club, Matilda Bay. */
+/** Matilda Bay, on the Swan River. */
 export const LOCATION = { name: 'Matilda Bay', lat: -31.979, lon: 115.834 }
 
 export interface WeatherData {

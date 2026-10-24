@@ -1,8 +1,13 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router'
-import { BookOpen, FlaskConical, House, Monitor, Moon, Sun, Wind, Wrench } from 'lucide-react'
+import { BookOpen, FlaskConical, House, PanelLeftClose, PanelLeftOpen, ShieldCheck, Wind, Wrench } from 'lucide-react'
 import { useProgress, type Theme } from '../lib/progress'
+import { useSession } from '../lib/session'
 import { Logo } from '../components/ui/Logo'
+import { Avatar } from '../components/ui/Avatar'
+import { ThemeButton } from '../components/ui/ThemeSwitch'
+import { SearchBox, SearchButton } from '../components/ui/Search'
+import { LoginPage } from '../features/account/LoginPage'
 
 const NAV = [
   { to: '/', label: 'Home', icon: House, end: true },
@@ -11,6 +16,31 @@ const NAV = [
   { to: '/toolbox', label: 'Toolbox', icon: Wrench },
   { to: '/weather', label: 'Weather', icon: Wind },
 ]
+
+// Sidebar only — on phones admins reach it from their Profile page.
+const ADMIN_NAV = { to: '/admin', label: 'Admin', icon: ShieldCheck, end: false }
+
+/** Collapsed/expanded sidebar — a per-device preference, so it lives in localStorage rather than the account. */
+function useSidebarCollapsed() {
+  const KEY = 't-sailor-sidebar-collapsed'
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  const toggle = () =>
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(KEY, c ? '0' : '1')
+      } catch {
+        /* storage unavailable — still toggles for this visit */
+      }
+      return !c
+    })
+  return [collapsed, toggle] as const
+}
 
 function useThemeClass(theme: Theme) {
   useEffect(() => {
@@ -25,78 +55,86 @@ function useThemeClass(theme: Theme) {
   }, [theme])
 }
 
-function ThemeSwitch({ compact = false }: { compact?: boolean }) {
-  const theme = useProgress((s) => s.theme)
-  const setTheme = useProgress((s) => s.setTheme)
-  const opts: { v: Theme; icon: typeof Sun; label: string }[] = [
-    { v: 'light', icon: Sun, label: 'Light' },
-    { v: 'system', icon: Monitor, label: 'System' },
-    { v: 'dark', icon: Moon, label: 'Dark' },
-  ]
-  return (
-    <div className={`flex rounded-full bg-surface-2 p-1 ${compact ? '' : 'w-full'}`} role="radiogroup" aria-label="Theme">
-      {opts.map(({ v, icon: Icon, label }) => (
-        <button
-          key={v}
-          role="radio"
-          aria-checked={theme === v}
-          aria-label={label}
-          onClick={() => setTheme(v)}
-          className={`flex flex-1 items-center justify-center rounded-full px-2.5 py-1.5 transition ${
-            theme === v ? 'bg-surface text-ink shadow-sm' : 'text-muted hover:text-ink'
-          }`}
-        >
-          <Icon size={15} />
-        </button>
-      ))}
-    </div>
-  )
-}
-
 export function Layout() {
   const theme = useProgress((s) => s.theme)
   useThemeClass(theme)
-  const { pathname } = useLocation()
-  useEffect(() => window.scrollTo(0, 0), [pathname])
+  const { pathname, hash, key } = useLocation()
+  useEffect(() => {
+    if (!hash) return window.scrollTo(0, 0)
+    // e.g. a search result pointing at a lesson section — wait a tick for the page to render
+    const t = setTimeout(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ behavior: 'smooth' }), 60)
+    return () => clearTimeout(t)
+  }, [pathname, hash, hash ? key : ''])
+  const status = useSession((s) => s.status)
+  const user = useSession((s) => s.user)
+  const [collapsed, toggleCollapsed] = useSidebarCollapsed()
+
+  if (status === 'loading') return <div className="min-h-dvh" />
+  if (status === 'signed-out' || !user) return <LoginPage />
 
   return (
-    <div className="min-h-dvh md:pl-60">
+    <div className={`min-h-dvh transition-[padding] duration-200 ${collapsed ? 'md:pl-[72px]' : 'md:pl-60'}`}>
       {/* Sidebar (tablet & desktop) */}
-      <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-line bg-surface/80 px-4 py-6 backdrop-blur md:flex">
-        <NavLink to="/" className="mb-8 px-2">
-          <Logo />
-        </NavLink>
+      <aside
+        className={`fixed inset-y-0 left-0 z-30 hidden flex-col border-r border-line bg-surface/80 pt-3 pb-6 backdrop-blur transition-[width] duration-200 md:flex ${
+          collapsed ? 'w-[72px] px-3' : 'w-60 px-4'
+        }`}
+      >
+        <div className={`mb-8 flex items-center ${collapsed ? 'flex-col gap-3' : 'justify-between pl-2'}`}>
+          <NavLink to="/" aria-label="Home">
+            <Logo markOnly={collapsed} />
+          </NavLink>
+          <button
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-muted transition hover:bg-surface-2 hover:text-ink"
+          >
+            {collapsed ? <PanelLeftOpen size={18} /> : <PanelLeftClose size={18} />}
+          </button>
+        </div>
         <nav className="flex flex-col gap-1">
-          {NAV.map(({ to, label, icon: Icon, end }) => (
+          {(user.admin ? [...NAV, ADMIN_NAV] : NAV).map(({ to, label, icon: Icon, end }) => (
             <NavLink
               key={to}
               to={to}
               end={end}
+              title={collapsed ? label : undefined}
+              aria-label={collapsed ? label : undefined}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-xl px-3 py-2.5 text-[15px] font-medium transition ${
+                `flex items-center gap-3 rounded-xl py-2.5 text-[15px] font-medium transition ${collapsed ? 'justify-center px-0' : 'px-3'} ${
                   isActive ? 'bg-sea-soft text-sea' : 'text-muted hover:bg-surface-2 hover:text-ink'
                 }`
               }
             >
-              <Icon size={19} />
-              {label}
+              <Icon size={19} className="shrink-0" />
+              {!collapsed && label}
             </NavLink>
           ))}
         </nav>
-        <div className="mt-auto space-y-3">
-          <ThemeSwitch />
-          <p className="px-2 text-xs leading-relaxed text-muted">
-            Study companion for Royal Perth Yacht Club keelboat courses. Always follow your instructor.
-          </p>
-        </div>
       </aside>
 
-      {/* Top bar (phone) */}
-      <header className="sticky top-0 z-30 flex items-center justify-between border-b border-line bg-bg/85 px-4 py-3 backdrop-blur md:hidden">
-        <NavLink to="/">
+      {/* Top bar: search in the middle, theme and profile on the right (logo too on phones) */}
+      <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-line bg-bg/85 px-4 py-2.5 backdrop-blur sm:px-6">
+        <NavLink to="/" className="md:hidden">
           <Logo small />
         </NavLink>
-        <ThemeSwitch compact />
+        <div className="hidden flex-1 md:block" />
+        <div className="hidden w-full max-w-xl md:block">
+          <SearchBox shortcut />
+        </div>
+        <div className="flex flex-1 items-center justify-end gap-1">
+          <SearchButton className="md:hidden" />
+          <ThemeButton />
+          <NavLink
+            to="/profile"
+            aria-label={`${user.name} — profile`}
+            title={user.name}
+            className={({ isActive }) => `ml-1 rounded-full ring-offset-2 ring-offset-bg transition ${isActive ? 'ring-2 ring-sea' : 'hover:ring-2 hover:ring-line'}`}
+          >
+            <Avatar name={user.name} size={32} />
+          </NavLink>
+        </div>
       </header>
 
       <main className="mx-auto max-w-6xl px-4 pt-5 pb-28 sm:px-6 md:pt-8 md:pb-16 lg:px-10">

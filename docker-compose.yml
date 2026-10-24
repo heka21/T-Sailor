@@ -1,7 +1,23 @@
 services:
   t-sailor:
-    build: .
+    build:
+      context: .
+      target: web
     container_name: t-sailor
     ports:
       - "8090:80"
+    depends_on:
+      - api
     restart: unless-stopped
+
+  api:
+    build:
+      context: .
+      target: api
+    container_name: t-sailor-api
+    volumes:
+      - t-sailor-data:/data
+    restart: unless-stopped
+
+volumes:
+  t-sailor-data:

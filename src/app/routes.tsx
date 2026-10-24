@@ -7,6 +7,8 @@ import { LessonPage } from '../features/courses/LessonPage'
 import { LabPage, SimPage } from '../features/lab/LabPage'
 import { ToolboxPage, ToolPage } from '../features/toolbox/ToolboxPage'
 import { WeatherPage } from '../features/weather/WeatherPage'
+import { ProfilePage } from '../features/account/ProfilePage'
+import { AdminPage } from '../features/account/AdminPage'
 import { NotFound } from './NotFound'
 
 export const router = createBrowserRouter([
@@ -22,6 +24,8 @@ export const router = createBrowserRouter([
       { path: 'toolbox', element: <ToolboxPage /> },
       { path: 'toolbox/:toolId', element: <ToolPage /> },
       { path: 'weather', element: <WeatherPage /> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: 'admin', element: <AdminPage /> },
       { path: '*', element: <NotFound /> },
     ],
   },

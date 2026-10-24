@@ -1,4 +1,4 @@
-export function Logo({ small = false }: { small?: boolean }) {
+export function Logo({ small = false, markOnly = false }: { small?: boolean; markOnly?: boolean }) {
   const s = small ? 30 : 36
   return (
     <span className="flex items-center gap-2.5">
@@ -8,9 +8,11 @@ export function Logo({ small = false }: { small?: boolean }) {
         <path d="M36 16 C46 24 50 34 50 44 L36 44 Z" fill="#14b8c4" />
         <path d="M10 48 L54 48 L48 55 L16 55 Z" fill="#f26b1d" />
       </svg>
-      <span className={`font-display font-bold tracking-tight ${small ? 'text-lg' : 'text-xl'}`}>
-        T-<span className="text-sea">Sailor</span>
-      </span>
+      {!markOnly && (
+        <span className={`font-display font-bold tracking-tight ${small ? 'text-lg' : 'text-xl'}`}>
+          T-<span className="text-sea">Sailor</span>
+        </span>
+      )}
     </span>
   )
 }

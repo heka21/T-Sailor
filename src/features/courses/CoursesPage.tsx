@@ -40,7 +40,7 @@ export function CoursesPage() {
   return (
     <>
       <PageHeader eyebrow="Courses" title="Your keelboat pathway">
-        The five Royal Perth Yacht Club keelboat courses, in the order you’ll take them. Each lesson mixes short
+        The five keelboat courses, in the order you’ll take them. Each lesson mixes short
         explanations with interactive diagrams.
       </PageHeader>
       <div className="relative space-y-3">

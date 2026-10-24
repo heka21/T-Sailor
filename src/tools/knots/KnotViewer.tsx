@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router'
 import { motion } from 'motion/react'
 import { ChevronLeft, ChevronRight, Pause, Play } from 'lucide-react'
 import { KNOTS, type Knot, type Segment } from './data'
@@ -50,7 +51,8 @@ export function KnotDiagram({ knot, step }: { knot: Knot; step: number }) {
 }
 
 export function KnotViewer({ knot: only }: { knot?: string }) {
-  const [id, setId] = useState(only ?? KNOTS[0].id)
+  const requested = useSearchParams()[0].get('knot')
+  const [id, setId] = useState(only ?? requested ?? KNOTS[0].id)
   const [step, setStep] = useState(0)
   const [playing, setPlaying] = useState(false)
   const knot = KNOTS.find((k) => k.id === id) ?? KNOTS[0]
@@ -71,6 +73,11 @@ export function KnotViewer({ knot: only }: { knot?: string }) {
     setStep(0)
     setPlaying(false)
   }
+
+  // A search result (?knot=bowline) picked while this page is already open.
+  useEffect(() => {
+    if (!only && requested) pick(requested)
+  }, [only, requested])
 
   return (
     <div className="not-prose my-6 overflow-hidden rounded-3xl border border-line bg-surface shadow-sm">
