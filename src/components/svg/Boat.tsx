@@ -9,6 +9,8 @@ import { toRad, type FlowState } from '../../lib/sailing'
 
 export const HULL_PATH =
   'M0,-52 C14,-38 19,-12 18,14 C17.5,30 15,44 12,48 L-12,48 C-15,44 -17.5,30 -18,14 C-19,-12 -14,-38 0,-52 Z'
+const PORT_SIDE = 'M0,-52 C-14,-38 -19,-12 -18,14 C-17.5,30 -15,44 -12,48'
+const STARBOARD_SIDE = 'M0,-52 C14,-38 19,-12 18,14 C17.5,30 15,44 12,48'
 export const BOAT_LENGTH = 100
 export const MAST = { x: 0, y: -10 }
 const FORESTAY = { x: 0, y: -47 }
@@ -33,6 +35,8 @@ export interface BoatProps {
   showJib?: boolean
   showMain?: boolean
   opacity?: number
+  /** Colour the hull sides like navigation lights: port red, starboard green. */
+  sideColours?: boolean
   children?: ReactNode
 }
 
@@ -102,6 +106,7 @@ export function Boat({
   showJib = true,
   showMain = true,
   opacity = 1,
+  sideColours = false,
   children,
 }: BoatProps) {
   const jibAngle = jib ?? Math.min(70, sail * 0.9 + 2)
@@ -126,6 +131,14 @@ export function Boat({
         opacity={0.14}
       />
       <rect x={-11.5} y={19} width={23} height={25} rx={5} fill={accent} opacity={0.22} />
+      {sideColours && (
+        <g fill="none" strokeWidth={3.4} strokeLinecap="round">
+          <path d={PORT_SIDE} stroke="var(--port)" />
+          <path d={STARBOARD_SIDE} stroke="var(--starboard)" />
+          <circle cx={-10} cy={-34} r={2.6} fill="var(--port)" stroke="white" strokeWidth={0.8} />
+          <circle cx={10} cy={-34} r={2.6} fill="var(--starboard)" stroke="white" strokeWidth={0.8} />
+        </g>
+      )}
       {/* tiller, pivoting at the rudder head */}
       <line
         x1={0}

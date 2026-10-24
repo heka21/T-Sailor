@@ -1,7 +1,8 @@
 import { useCallback, useRef, useState, type KeyboardEvent } from 'react'
 import { useSearchParams } from 'react-router'
-import { ArrowLeftRight, LayoutGrid } from 'lucide-react'
+import { ArrowLeftRight, LayoutGrid, TriangleAlert } from 'lucide-react'
 import {
+  NO_GO,
   POINTS_OF_SAIL,
   apparentWind,
   boatSpeed,
@@ -40,6 +41,28 @@ const H = 660
 const C: Vec = { x: 360, y: 330 }
 const R0 = 150
 const R1 = 205
+/** Within this many degrees of dead downwind the boat risks an accidental gybe. */
+const GYBE_DANGER = 15
+
+/** Where the boat gets into trouble: stalled head-to-wind, or nearly dead downwind. */
+function dangerOf(twa: number) {
+  const a = Math.abs(twa)
+  if (a < NO_GO) {
+    return {
+      id: 'no-go' as const,
+      title: 'Danger zone: no-go',
+      text: 'Too close to the wind — the sails flap, you lose steering and end up in irons. Bear away until the sails fill.',
+    }
+  }
+  if (a > 180 - GYBE_DANGER) {
+    return {
+      id: 'gybe' as const,
+      title: 'Danger zone: accidental gybe',
+      text: 'The wind is almost dead behind. A wave or a small steering error can slam the boom across the boat. Head up a few degrees, and keep heads low.',
+    }
+  }
+  return null
+}
 
 /** Everything a boat needs to draw itself correctly for a heading in a given wind. */
 export function trimFor(heading: number, windFrom: number, tws: number) {
@@ -74,6 +97,7 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
   const tween = useTween()
 
   const s = trimFor(heading, windFrom, tws)
+  const danger = dangerOf(s.twa)
 
   const steer = useCallback((p: Vec) => setHeading(Math.round(vecBearing({ x: p.x - C.x, y: p.y - C.y }))), [])
   const turnWind = useCallback((p: Vec) => setWindFrom(Math.round(vecBearing({ x: p.x - C.x, y: p.y - C.y }))), [])
@@ -115,6 +139,10 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
     ]
   })
   const twaSide = s.twa >= 0 ? 1 : -1
+  const dangerZones = [
+    { id: 'no-go', a: windFrom - NO_GO, b: windFrom + NO_GO, mid: windFrom },
+    { id: 'gybe', a: windFrom + 180 - GYBE_DANGER, b: windFrom + 180 + GYBE_DANGER, mid: windFrom + 180 },
+  ] as const
   const windHandle = polar(C, windFrom, 270)
 
   return (
@@ -132,6 +160,11 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
           aria-label={`Points of sail. Heading ${Math.round(heading)} degrees, ${s.pos.name}, ${s.tack} tack. Use left and right arrows to steer.`}
         >
           <WaterDefs id="pos" />
+          <defs>
+            <pattern id="pos-danger" width={10} height={10} patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1={0} y1={0} x2={0} y2={10} stroke="var(--port)" strokeWidth={3.5} strokeOpacity={0.55} />
+            </pattern>
+          </defs>
           <Water id="pos" width={W} height={H} />
           <WindField windFrom={windFrom} width={W} height={H} speed={tws} />
           <rect width={W} height={H} fill="transparent" {...steerDrag} style={{ cursor: 'crosshair' }} />
@@ -148,6 +181,28 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
                   stroke="var(--surface)"
                   strokeWidth={2}
                 />
+              )
+            })}
+            {/* danger zones: hatched over the ring, with a warning sign */}
+            {dangerZones.map(({ id, a, b, mid }) => {
+              const active = danger?.id === id
+              const at = polar(C, mid, (R0 + R1) / 2)
+              return (
+                <g key={id}>
+                  <path
+                    d={sectorPath(C, R0, R1, a, b)}
+                    fill="url(#pos-danger)"
+                    stroke="var(--port)"
+                    strokeWidth={active ? 3 : 1.5}
+                    strokeDasharray={active ? undefined : '5 4'}
+                  />
+                  <g transform={`translate(${at.x} ${at.y})`}>
+                    <path d="M0,-11 L11,8 L-11,8 Z" fill="var(--port)" stroke="white" strokeWidth={2} strokeLinejoin="round" />
+                    <text y={6} textAnchor="middle" fontSize={12} fontWeight={800} fill="white">
+                      !
+                    </text>
+                  </g>
+                </g>
               )
             })}
             {sectors.map(({ p, mid: m, side }, i) => {
@@ -198,7 +253,7 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
                   const t = trimFor(h, windFrom, tws)
                   return (
                     <g key={i} onClick={() => { setHeading(h); setClassic(false) }} style={{ cursor: 'pointer' }}>
-                      <Boat x={at.x} y={at.y} heading={h} scale={0.48} sail={t.sail} side={t.side} flow={t.flow} accent={POS_COLORS[t.pos.id]} />
+                      <Boat x={at.x} y={at.y} heading={h} scale={0.48} sail={t.sail} side={t.side} flow={t.flow} accent={POS_COLORS[t.pos.id]} sideColours />
                     </g>
                   )
                 })}
@@ -215,7 +270,7 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
                 strokeWidth={2}
                 strokeDasharray="4 6"
               />
-              <Boat x={C.x} y={C.y} heading={heading} scale={2.05} sail={s.sail} side={s.side} flow={s.flow} accent={POS_COLORS[s.pos.id]} />
+              <Boat x={C.x} y={C.y} heading={heading} scale={2.05} sail={s.sail} side={s.side} flow={s.flow} accent={POS_COLORS[s.pos.id]} sideColours />
               <circle cx={polar(C, heading, R0 - 6).x} cy={polar(C, heading, R0 - 6).y} r={9} fill="var(--signal)" stroke="white" strokeWidth={2.5} />
             </g>
           )}
@@ -246,6 +301,29 @@ export function PointsOfSail({ wind: windProp, speed: speedProp }: { wind?: numb
         )}
       </div>
       <p className="-mt-2 text-[15px] leading-snug text-muted">{s.pos.description}</p>
+
+      {danger && (
+        <div role="alert" className="flex gap-2.5 rounded-2xl border border-port/40 bg-port/10 p-3 text-sm leading-snug">
+          <TriangleAlert size={18} className="mt-0.5 shrink-0 text-port" />
+          <div>
+            <div className="font-bold text-port">{danger.title}</div>
+            <div className="text-ink">{danger.text}</div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs font-semibold text-muted">
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-port" /> Port side — red (left, facing the bow)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-2.5 rounded-full bg-starboard" /> Starboard side — green (right)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-2.5 w-3.5 rounded-sm border border-port" style={{ background: 'repeating-linear-gradient(45deg, var(--port) 0 2px, transparent 2px 5px)' }} />
+          Danger zone
+        </span>
+      </div>
 
       <Readout>
         <Stat label="True wind angle" value={`${Math.round(Math.abs(s.twa))}°`} sub={s.twa >= 0 ? 'over starboard side' : 'over port side'} />
