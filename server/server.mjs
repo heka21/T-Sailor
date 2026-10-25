@@ -66,6 +66,10 @@ setInterval(() => {
 // Behind the Cloudflare tunnel the real visitor is in CF-Connecting-IP; otherwise use the socket.
 const clientIp = (req) => String(req.headers['cf-connecting-ip'] ?? req.socket.remoteAddress)
 
+// Admin is LAN-only: anything that came through the Cloudflare tunnel carries CF-Connecting-IP
+// (Cloudflare sets it and clients can't strip it), so admin rights are dropped for those requests.
+const viaTunnel = (req) => req.headers['cf-connecting-ip'] !== undefined
+
 // --- http helpers
 function send(res, status, body, headers = {}) {
   res.writeHead(status, { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', ...headers })
@@ -118,7 +122,7 @@ const routes = [
       return send(res, 401, { error: 'Wrong username or password.' })
     }
     attempts.delete(key)
-    send(res, 200, profile({ username: user, ...account }), { 'Set-Cookie': session(req, user, account.hash) })
+    send(res, 200, profile({ username: user, ...account, admin: account.admin && !viaTunnel(req) }), { 'Set-Cookie': session(req, user, account.hash) })
   }, { public: true }],
 
   ['POST', '/api/logout', async (req, res) => {
@@ -218,8 +222,11 @@ createServer(async (req, res) => {
   const route = routes.find((r) => r.method === req.method && (match = r.pattern.exec(path)))
   if (!route) return send(res, 404, { error: 'Not found' })
   try {
+    // Over the tunnel, admin routes don't exist at all.
+    if (route.admin && viaTunnel(req)) return send(res, 404, { error: 'Not found' })
     const me = sessionUser(req)
     if (!me && !route.public) return send(res, 401, { error: 'Not signed in' })
+    if (me && viaTunnel(req)) me.admin = false
     if (route.admin && !me.admin) return send(res, 403, { error: 'Admins only' })
     await route.handler(req, res, me, match.groups ?? {})
   } catch (e) {

@@ -21,7 +21,9 @@ There's no sign-up: everyone needs an account an admin creates. Each account has
 where they left off, checklists, theme), saved on the server so it follows them between devices.
 
 Admins manage everyone from the **Admin** page (sidebar, or Profile → Manage users on a phone): add users, rename
-them, set a new password, grant or remove admin, reset progress, or remove them. Create the first admin from the CLI:
+them, set a new password, grant or remove admin, reset progress, or remove them. Admin only works from the LAN address
+(`http://<host>:8090`): anything arriving through the Cloudflare tunnel is treated as a regular user, and the admin
+API answers 404. Create the first admin from the CLI:
 
 ```sh
 pnpm user add tarek --name "Tarek" --admin   # prompts for a password
